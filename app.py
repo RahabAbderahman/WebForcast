@@ -1,152 +1,119 @@
 import os
-import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for
-import plotly.express as px
-import plotly.io as pio
 import analysis_and_plots
+import pandas as pd
+import streamlit as st
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['ALLOWED_EXTENSIONS'] = {'xlsx'}
+# Set Streamlit to wide mode
+st.set_page_config(layout="wide")
 
-# Ensure the upload folder exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Define the uploaded_file variable at the top level
+uploaded_file = None
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+st.title('Forecast Data Visualization')
 
-# Function to read tables from a single sheet in Excel data
-def get_tables_from_sheet2(file_path, sheet_name):
-    # Read the sheet into a DataFrame
-    df = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
+# Create two columns
+col1, col2 = st.columns(2)
+
+with col2:
+    st.header("Purchases Table")
+
+    if 'purchases_table' not in st.session_state:
+        st.session_state.purchases_table = []
+
+    def add_row():
+        st.session_state.purchases_table.append({"Description": "", "Category": "", "Amount": "", "Delete": ""})
+
+    def delete_row(index):
+        st.session_state.purchases_table.pop(index)
+
     
-    # Logic to identify and separate tables
-    tables = []
-    current_table = []
-    for index, row in df.iterrows():
-        if row.isnull().all():
-            if current_table:
-                # Convert to DataFrame and drop the first row
-                table_df = pd.DataFrame(current_table).drop([0, 2, 9], errors='ignore')
-                tables.append(table_df)
-                current_table = []
+
+    for i, row in enumerate(st.session_state.purchases_table):
+        cols = st.columns(4)
+        row["Description"] = cols[0].text_input("Description", value=row["Description"], key=f"description_{i}")
+        # Category selectbox with "Other" option
+        categories = ["Loyer", "Restaurant", "Telephone", "Shopping", "Coffee", "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport", "Divers", "Autres"]
+        selected_category = row.get("Category", "Loyer")
+        if selected_category not in categories:
+            selected_category = "Loyer"
+        selected_category = cols[1].selectbox("Category", categories, index=categories.index(selected_category), key=f"category_{i}")
+        
+        if selected_category == "Autres":
+            row["Category"] = cols[1].text_input("Specify Category", value=row.get("Category", ""), key=f"other_category_{i}")
         else:
-            current_table.append(row)
-    if current_table:
-        # Convert to DataFrame and drop the first row
-        table_df = pd.DataFrame(current_table).drop([0, 2, 9], errors='ignore')
-        tables.append(table_df)
+            row["Category"] = selected_category
+        
+        row["Amount"] = cols[2].text_input("Amount", value=row["Amount"], key=f"amount_{i}")
+        if cols[3].button("Delete", key=f"delete_{i}"):
+            delete_row(i)
+
+    if st.button("Add Purchase"):
+        add_row()
+    # Initialize the uploaded_file variable using the file uploader
+    uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
     
-    return tables
 
-@app.route('/')
-def index():
-    # Check if an uploaded file exists
-    uploaded_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'data.xlsx')
-    if not os.path.exists(uploaded_file_path):
-        return render_template('index.html', tables="")
+if uploaded_file is not None:
+    # Store the uploaded file in session state
+    st.session_state.uploaded_file = uploaded_file
 
-    # Load data from the uploaded Excel file
-    sheet_name = "CFF"  # Replace with your sheet name
-    tables = analysis_and_plots.get_tables_from_sheet(uploaded_file_path, sheet_name)
-    # Process each table
-    tables_html = ""
-    '''''
-    for i, df in enumerate(tables):
-        # Replace NaN values with empty strings
-        df = df.fillna('')
+with col1:
+    if 'uploaded_file' in st.session_state:
+        sheet_name = "CFF"  # Replace with your sheet name
+        tables = analysis_and_plots.get_tables_from_sheet(st.session_state.uploaded_file, sheet_name)
+        # Example of processing and visualizing data
+        
+        # TABLE OF REVENUES
+        revenus = tables[0]
+        index_revenus = ["Salaire"]
+        # TABLE OF Expenses
+        depenses = tables[1]
+        index_depenses = [
+        "Loyer", "Restaurant", "Telephone", "Shopping", "Coffee",
+        "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport",
+        "Divers", "Autres"
+        ]
 
-        if i == 0:
-            tables_html += f"<h2>REVENUS</h2>"
-        elif i == 1:
-            tables_html += f"<h2>DEPENSES</h2>"
-        elif i == 2:
-            tables_html += f"<h2>Forcast</h2>"
-        # Append the data table to the HTML
-        tables_html += f"<div class='table-responsive'>{df.to_html(classes='table table-striped', index=False)}</div>"
-    '''''
-    # TABLE OF REVENUES
-    revenus = tables[0]
-    index_depenses = [
-    "Loyer", "Restaurant", "Telephone", "Shopping", "Coffee",
-    "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport",
-    "Divers", "Autres"
-    ]
+        # Preprocessing TABLE OF REVENUES
+        df_revenus = analysis_and_plots.preprocessing(revenus)
 
-    # TABLE OF REVENUES
-    depenses = tables[2]
-    index_revenus = ["Salaire"]
+        # Preprocessing TABLE OF DEPENSES
+        df_depense = analysis_and_plots.preprocessing(depenses)
 
-    # preprocessing TABLE OF REVENUES
-    df_revenus = analysis_and_plots.preprocessing(revenus)
-
-
-    # preprocessing TABLE OF DEPENSES
-    df_depense = analysis_and_plots.preprocessing(depenses)
-    print(df_depense)
+        # Create dataframes for revenues
+        dataframe_revenus = analysis_and_plots.create_df(df_revenus,"REVENUS",index_revenus)
     
-    # Create dataframes for revenues and expenses
-    dataframe_revenus = analysis_and_plots.create_df(df_revenus,"REVENUS",index_revenus)
-    
-    # Create dataframes for expenses
-    dataframe_depenses = analysis_and_plots.create_df(df_depense,"DEPENSES",index_depenses)
-    
-    total_depenses =  analysis_and_plots.sum_columns(dataframe_depenses)
-    total_revenus = analysis_and_plots.sum_columns(dataframe_revenus)
-    
-    # Create a dataframe for the main table
-    df_main = analysis_and_plots.subtract_dataframes(total_revenus,total_depenses)
-
-    # Charger le modèle pré-entraîné
-    loaded_model = analysis_and_plots.load_model(filename='trained_exp_smoothing_model.pkl')
+        # Create dataframes for expenses
+        dataframe_depenses = analysis_and_plots.create_df(df_depense,"DEPENSES",index_depenses)
 
 
-    # Prédire sur plusieurs semaines pour le nouveau client
-    predictions = analysis_and_plots.predict_with_model(loaded_model, df_main, weeks_ahead=4)
+        total_depenses =  analysis_and_plots.sum_columns(dataframe_depenses)
+        total_revenus = analysis_and_plots.sum_columns(dataframe_revenus)
+        
+        # Create a dataframe for the main table
+        df_main = analysis_and_plots.subtract_dataframes(total_revenus,total_depenses)
 
-    flux_forecast = []
+        # Charger le modèle pré-entraîné
+        loaded_model = analysis_and_plots.load_model(filename='trained_exp_smoothing_model.pkl')
 
-    flux_forecast = predictions['Predicted_Balance']
+
+        # Prédire sur plusieurs semaines pour le nouveau client
+        predictions = analysis_and_plots.predict_with_model(loaded_model, df_main, weeks_ahead=4)
+
+        flux_forecast = []
+
+        flux_forecast = predictions['Predicted_Balance']
 
 
-    forecast_balance = analysis_and_plots.cumulative_addition(flux_forecast,1564.01)
-    df_forecast= pd.DataFrame(forecast_balance, columns=['Forecast_Balance'])
-
-    print(forecast_balance)
-
-    
-    # VISUALIZATION OF THE DATAFRAME OF REVENUES
-    tables_html += f"<h2>REVENUS</h2>"
-    tables_html += f"<div class='table-responsive'>{dataframe_revenus.to_html(classes='table table-striped', index=False)}</div>"
-    
-    # VISUALIZATION OF THE DATAFRAME OF EXPENSES
-    tables_html += f"<h2>DEPENSES</h2>"
-    tables_html += f"<div class='table-responsive'>{dataframe_depenses.to_html(classes='table table-striped', index=False)}</div>"
-    
-    # VISUALIZATION OF THE DATAFRAME OF Balance
-    tables_html += f"<h2>Balance</h2>"
-    tables_html += f"<div class='table-responsive'>{df_main.transpose().to_html(classes='table table-striped', index=False)}</div>"
-    
-    # VISUALIZATION OF THE DATAFRAME OF Forecast
-    tables_html += f"<h2>Forecast</h2>"
-    tables_html += f"<div class='table-responsive'>{df_forecast.transpose().to_html(classes='table table-striped', index=False)}</div>"
-    
-    
-    # Render the data tables and pie charts
-    return render_template('index.html', tables=tables_html) # type: ignore
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return redirect(request.url)
-    file = request.files['file']
-    if file.filename == '':
-        return redirect(request.url)
-    if file and allowed_file(file.filename):
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'data.xlsx')
-        file.save(file_path)
-        return redirect(url_for('index'))
-    return redirect(request.url)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+        forecast_balance = analysis_and_plots.cumulative_addition(flux_forecast,1564.01)
+        df_forecast= pd.DataFrame(forecast_balance, columns=['Forecast_Balance'])
+        
+        st.header("REVENUS")
+        st.dataframe(dataframe_revenus)
+        st.header("DEPENSES")
+        st.dataframe(dataframe_depenses)
+        st.header("Balance")
+        st.dataframe(df_main.transpose())
+        st.header("FORECAST")        
+        st.dataframe(df_forecast.transpose())
+        
