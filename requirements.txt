@@ -1,6 +1,7 @@
 matplotlib
 seaborn
 statsmodels
+sklearn
 scikit-learn
 pickle
 BytesIO
