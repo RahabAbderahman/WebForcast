@@ -5,14 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forcast Data Visualization</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script>
+        function addRow() {
+            var table = document.getElementById("dynamicTable");
+            var row = table.insertRow(-1); // Add a row at the end of the table
+            var cell1 = row.insertCell(0);
+            var cell2 = row.insertCell(1);
+            var cell3 = row.insertCell(2);
+            var cell4 = row.insertCell(3);
+
+            cell1.innerHTML = "<input type='text' class='form-control' />";
+            cell2.innerHTML = `
+                <select class='form-control'>
+                    <option value='Loyer'>Loyer</option>
+                    <option value='Restaurant'>Restaurant</option>
+                    <option value='Telephone'>Telephone</option>
+                    <option value='Shopping'>Shopping</option>
+                    <option value='Coffee'>Coffee</option>
+                    <option value='Transports'>Transports</option>
+                    <option value='Electricte'>Electricte</option>
+                    <option value='Netflix'>Netflix</option>
+                    <option value='Divers Amazon'>Divers Amazon</option>
+                    <option value='Salle de sport'>Salle de sport</option>
+                    <option value='Divers'>Divers</option>
+                    <option value='Autres'>Autres</option>
+                </select>`;
+            cell3.innerHTML = "<input type='text' class='form-control' />";
+            cell4.innerHTML = "<button class='btn btn-danger' onclick='deleteRow(this)'><i class='fas fa-trash-alt'></i></button>";
+        }
+
+        function deleteRow(button) {
+            var row = button.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+        }
+    </script>
 </head>
 <body>
     <div class="container">
-        <div>
-            {{ tables|safe }}
-        </div>
-        <div>
-            {{ pie_charts|safe }}
+        <div class="row">
+            <div class="col-md-8">
+                <div>
+                    {{ tables|safe }}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h2>Purchases Table</h2>
+                <table id="dynamicTable" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><input type="text" class="form-control" /></td>
+                            <td>
+                                <select class="form-control">
+                                    <option value="Loyer">Loyer</option>
+                                    <option value="Restaurant">Restaurant</option>
+                                    <option value="Telephone">Telephone</option>
+                                    <option value="Shopping">Shopping</option>
+                                    <option value="Coffee">Coffee</option>
+                                    <option value="Transports">Transports</option>
+                                    <option value="Electricte">Electricte</option>
+                                    <option value="Netflix">Netflix</option>
+                                    <option value="Divers Amazon">Divers Amazon</option>
+                                    <option value="Salle de sport">Salle de sport</option>
+                                    <option value="Divers">Divers</option>
+                                    <option value="Autres">Autres</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="form-control" /></td>
+                            <td><button class="btn btn-danger" onclick="deleteRow(this)"><i class="fas fa-trash-alt"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button class="btn btn-primary" onclick="addRow()">Add Row</button>
+                <button class="btn btn-primary" onclick="">Simulate</button>
+                <h2>Upload File</h2>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="file">Choose Excel file</label>
+                        <input type="file" class="form-control-file" id="file" name="file" accept=".xlsx">
+                    </div>
+                    <button type="submit" class="btn btn-success">Upload</button>
+                </form>
+            </div>
         </div>
     </div>
 </body>
