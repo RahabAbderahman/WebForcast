@@ -2,6 +2,7 @@ import os
 import analysis_and_plots
 import pandas as pd
 import streamlit as st
+from io import BytesIO
 
 # Set Streamlit to wide mode
 st.set_page_config(layout="wide")
@@ -21,24 +22,28 @@ with col2:
         st.session_state.purchases_table = []
 
     def add_row():
-        st.session_state.purchases_table.append({"Description": "", "Category": "", "Amount": "", "Delete": ""})
+        st.session_state.purchases_table.append({"Description": "", "Category": "Loyer", "Amount": ""})
+        #st.experimental_set_query_params(ummy_param="1")
 
     def delete_row(index):
         st.session_state.purchases_table.pop(index)
+        #st.experimental_set_query_params(dummy_param="1")
 
-    
+    if st.button("Add Purchase"):
+        add_row()
+        st.rerun() 
 
     for i, row in enumerate(st.session_state.purchases_table):
         cols = st.columns(4)
         row["Description"] = cols[0].text_input("Description", value=row["Description"], key=f"description_{i}")
         # Category selectbox with "Other" option
-        categories = ["Loyer", "Restaurant", "Telephone", "Shopping", "Coffee", "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport", "Divers", "Autres"]
+        categories = ["Loyer", "Restaurant", "Telephone", "Shopping", "Coffee", "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport", "Divers", "Autres", "Other"]
         selected_category = row.get("Category", "Loyer")
         if selected_category not in categories:
             selected_category = "Loyer"
         selected_category = cols[1].selectbox("Category", categories, index=categories.index(selected_category), key=f"category_{i}")
         
-        if selected_category == "Autres":
+        if selected_category == "Other":
             row["Category"] = cols[1].text_input("Specify Category", value=row.get("Category", ""), key=f"other_category_{i}")
         else:
             row["Category"] = selected_category
@@ -46,12 +51,59 @@ with col2:
         row["Amount"] = cols[2].text_input("Amount", value=row["Amount"], key=f"amount_{i}")
         if cols[3].button("Delete", key=f"delete_{i}"):
             delete_row(i)
-
-    if st.button("Add Purchase"):
-        add_row()
+            st.rerun()
+    
     # Initialize the uploaded_file variable using the file uploader
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
-    
+    # Section to download an Excel file
+    st.header("Download Provided Excel File")
+
+    # Create a sample DataFrame
+    provided_data = {
+        "Date": ["","REVENUS", "Salaire", "Vente", "Autres","","","DEPENSES","Loyer ","Restaurant","Telephone","Shopping","Coffee","Transports","Electricte","Netflix","Divers Amazon","Salle de sport ","Divers","Autres"],
+        "01/08/2024": ["","","","","","","","","","","","","","","","","","","",""],
+        "08/08/2024": ["","","","","","","","","","","","","","","","","","","",""],
+        "15/08/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "22/08/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "29/08/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "05/09/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "12/09/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "19/09/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "26/09/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "03/10/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "10/10/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "17/10/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "24/10/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "31/10/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "07/11/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "14/11/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "21/11/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "28/11/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "05/12/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "12/12/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "19/12/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "26/12/2024":["","","","","","","","","","","","","","","","","","","",""],
+        "02/01/2025":["","","","","","","","","","","","","","","","","","","",""],
+        "09/01/2025":["","","","","","","","","","","","","","","","","","","",""],
+        "16/01/2025":["","","","","","","","","","","","","","","","","","","",""],
+        "23/01/2025":["","","","","","","","","","","","","","","","","","","",""],
+    }
+    provided_df = pd.DataFrame(provided_data)
+
+    # Convert DataFrame to Excel
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        provided_df.to_excel(writer, index=False, sheet_name='CFF')
+        writer.close()
+        processed_data = output.getvalue()
+
+    # Provide the download button
+    st.download_button(
+        label="Download Excel File",
+        data=processed_data,
+        file_name="file.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 if uploaded_file is not None:
     # Store the uploaded file in session state
