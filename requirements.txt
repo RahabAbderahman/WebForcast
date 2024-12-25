@@ -2,6 +2,6 @@ matplotlib
 seaborn
 statsmodels
 scikit-learn
-sklearn
-pickle
-BytesIO
+streamlit
+pandas
+numpy
