@@ -29,9 +29,6 @@ with col2:
         st.session_state.purchases_table.pop(index)
         #st.experimental_set_query_params(dummy_param="1")
 
-    if st.button("Add Purchase"):
-        add_row()
-        st.rerun() 
 
     for i, row in enumerate(st.session_state.purchases_table):
         cols = st.columns(4)
@@ -52,6 +49,12 @@ with col2:
         if cols[3].button("Delete", key=f"delete_{i}"):
             delete_row(i)
             st.rerun()
+    if st.button("Add Purchase"):
+        add_row()
+        st.rerun()
+    if st.button("Simulate"):
+        #the code of simulation
+        print("Simulation")
     
     # Initialize the uploaded_file variable using the file uploader
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
