@@ -6,6 +6,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 from sklearn.metrics import mean_squared_error
 import pickle
+from datetime import datetime
 
 def preprocessing(df):
     """
@@ -143,12 +144,7 @@ def exp_smoothing_model(train_data, test_data, model='triple', span=12):
     """
     time_steps = len(test_data)
 
-    if model == 'single':
-        alpha = 2 / (span + 1)
-        model_fit = SimpleExpSmoothing(train_data['Balance']).fit(smoothing_level=alpha)
-    elif model == 'double':
-        model_fit = ExponentialSmoothing(train_data['Balance'], trend='add').fit()
-    elif model == 'triple':
+    if model == 'triple':
         model_fit = ExponentialSmoothing(train_data['Balance'], trend='add', seasonal='add', seasonal_periods=span).fit()
 
     #Save the trained model to a file
@@ -377,3 +373,52 @@ def subtract_dataframes(df1, df2):
 
 def weeklySoldeForecast(actualSold,weeklyTotalCashFlow):
   return actualSold+weeklyTotalCashFlow
+
+
+def weeks_between_dates(given_date):
+    """
+    Calcule le nombre de semaines entre la date actuelle et une date donnée.
+
+    Parameters:
+    - given_date (str): La date donnée au format "YYYY-MM-DD".
+
+    Returns:
+    - float: Le nombre de semaines (positif si dans le futur, négatif si dans le passé).
+    """
+    # Convertir la date donnée en un objet datetime
+    given_date = datetime.strptime(given_date, "%Y-%m-%d")
+    # Obtenir la date actuelle
+    current_date = datetime.now()
+    print(current_date)
+    
+    # Calculer la différence en jours
+    days_difference = (given_date - current_date).days
+    # Convertir en semaines
+    weeks_difference = days_difference / 7
+    return weeks_difference
+
+
+
+def simulation(date,amount,df_main):
+    weeks = int(weeks_between_dates(date))
+    if weeks == 0 :
+        weeks = 1
+    # Charger le modèle pré-entraîné
+    loaded_model = load_model(filename='trained_exp_smoothing_model.pkl')
+    # Prédire sur plusieurs semaines pour le nouveau client
+    predictions = predict_with_model(loaded_model, df_main, weeks_ahead=weeks)  
+
+    flux_forecast = []
+
+    flux_forecast = predictions['Predicted_Balance']
+
+
+    forecast_balance = cumulative_addition(flux_forecast,1564.01)
+
+    # Ajouter le montant spécifié à la dernière balance prévisionnelle
+    if isinstance(forecast_balance, list):  # Vérifier que c'est une liste
+        forecast_balance[-1] += amount
+    else:
+        raise TypeError("forecast_balance doit être une liste, vérifiez cumulative_addition.")
+    
+    return forecast_balance
