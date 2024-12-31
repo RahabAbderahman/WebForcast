@@ -30,6 +30,8 @@ def preprocessing(df):
     df_1 = df_1.dropna(how='all')
 
     df_1.fillna("", inplace=True)
+    df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
+
     return df_1
 
 
@@ -336,3 +338,57 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
         raise TypeError("forecast_balance must be a list. Check cumulative_addition implementation.")
 
     return forecast_balance
+
+
+
+def update_spending_df(df, category, amount, spending_week):
+    """
+    Updates the DataFrame with a new spending entry.
+    
+    Parameters:
+    df (pd.DataFrame): The current DataFrame of spending.
+    category (str): The spending category.
+    amount (float): The amount spent.
+    spending_week (str): The week of the spending in 'YYYY-mm-dd' format.
+    
+    Returns:
+    pd.DataFrame: The updated DataFrame.
+    """
+    # Ensure the spending_week is in 'YYYY-mm-dd' format and treat it as a Period object
+    spending_week = pd.to_datetime(spending_week, format='%Y-%m-%d').to_period('W-SUN')  # Week ending on Sunday
+
+    # Convert existing columns to Periods for consistency
+    if not df.empty:
+        existing_weeks = pd.to_datetime(df.columns, format='%Y-%m-%d', errors='coerce').to_period('W-SUN')
+    else:
+        existing_weeks = pd.PeriodIndex([], freq='W-SUN')
+    
+    # Handle missing weeks between the latest week and the new spending week
+    if existing_weeks.size > 0:
+        last_week = existing_weeks[-1]
+    else:
+        last_week = spending_week - 1  # Start from one week before the first spending week
+    
+    # Add missing weeks as columns
+    all_weeks = pd.period_range(last_week + 1, spending_week, freq='W-SUN')
+    for week in all_weeks:
+        week_str = week.end_time.strftime('%Y-%m-%d')  # Convert the end of the week to 'YYYY-mm-dd'
+        if week_str not in df.columns:
+            df[week_str] = 0  # Add missing weeks with zero values
+    
+    # Ensure the spending week column exists
+    spending_week_str = spending_week.end_time.strftime('%Y-%m-%d')
+    if spending_week_str not in df.columns:
+        df[spending_week_str] = 0
+    
+    # Ensure the category exists as a row
+    if category not in df.index:
+        df.loc[category] = [0] * len(df.columns)
+    
+    # Add the spending amount to the appropriate cell
+    df.loc[category, spending_week_str] += amount
+    
+    # Sort the columns chronologically
+    df = df.reindex(sorted(df.columns, key=lambda x: pd.to_datetime(x, format='%Y-%m-%d')), axis=1)
+    
+    return df
