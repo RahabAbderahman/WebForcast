@@ -59,72 +59,9 @@ def train_test_split(df, split_index=455):
 
     return train_data, test_data
 
-def plot_train_test_data(train_data, test_data, x_label_index=50, figsize=(12, 5), dpi=150):
-    """
-    Create a line plot to visualize training and test data.
 
-    Parameters:
-    - train_data (DataFrame): DataFrame containing training data with columns 'Week' and 'Balance'.
-    - test_data (DataFrame): DataFrame containing test data with columns 'Week' and 'Balance'.
-    - x_label_index (int): Frequency for displaying x-axis labels.
-    - figsize (tuple): Size of the figure.
-    - dpi (int): Dots per inch for the figure.
 
-    Returns:
-    - None: Displays the plot.
 
-    Example:
-    plot_train_test_data(train_df, test_df)
-    """
-    combined_data = pd.concat([train_data, test_data])
-    xlabels = combined_data['Week'][::x_label_index]
-
-    sns.set(style="whitegrid")
-    plt.figure(figsize=figsize, dpi=dpi)
-    sns.lineplot(data=train_data, x='Week', y='Balance', label='TRAIN')
-    sns.lineplot(data=test_data, x='Week', y='Balance', label='TEST')
-
-    plt.xticks(xlabels)
-    plt.xlabel('Week')
-    plt.ylabel('Balance')
-    plt.title('Balance Data')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-def seasonal_decompose_plot(train_data, period=12):
-    """
-    Perform seasonal decomposition on training data and plot the components.
-
-    Parameters:
-        train_data (DataFrame): Training data with 'Week' and 'Balance'.
-        period (int): Seasonal period. Default is 7.
-
-    Returns:
-        None
-
-    Example:
-    seasonal_decompose_plot(train_data, period=12)
-    """
-    result = seasonal_decompose(train_data['Balance'], period=period, model='additive')
-
-    plt.figure(figsize=(8, 6))
-    plt.subplot(411)
-    plt.plot(result.observed, label='Observed')
-    plt.legend()
-    plt.subplot(412)
-    plt.plot(result.trend, label='Trend')
-    plt.legend()
-    plt.subplot(413)
-    plt.plot(result.seasonal, label='Seasonal')
-    plt.legend()
-    plt.subplot(414)
-    plt.plot(result.resid, label='Residual')
-    plt.legend()
-
-    plt.suptitle('Seasonal Decomposition of Balance Data')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.show()
 
 def exp_smoothing_model(train_data, test_data, model='triple', span=12):
     """
@@ -155,40 +92,6 @@ def exp_smoothing_model(train_data, test_data, model='triple', span=12):
 
     return predictions
 
-def exponential_smoothing_plot(train_data, test_data, predictions, split_index=100, figsize=(12, 6), dpi=150):
-    """
-    Create a line plot to visualize training, test, and predicted data.
-
-    Parameters:
-    - train_data (DataFrame): Training data with 'Week' and 'Balance'.
-    - test_data (DataFrame): Test data with 'Week' and 'Balance'.
-    - predictions (DataFrame): Predictions with 'Week' and 'Balance'.
-    - split_index (int): Frequency for x-axis labels.
-    - figsize (tuple): Figure size.
-    - dpi (int): Figure resolution.
-
-    Returns:
-    - None: Displays the plot.
-
-    Example:
-    exponential_smoothing_plot(train_df, test_df, predictions)
-    """
-    combined_data = pd.concat([train_data, test_data])
-    xlabels = combined_data['Week'][::split_index]
-
-    sns.set(style="whitegrid")
-    plt.figure(figsize=figsize, dpi=dpi)
-    sns.lineplot(data=train_data, x='Week', y='Balance', label='TRAIN')
-    sns.lineplot(data=predictions, x='Week', y='Balance', label='PREDICTION')
-    sns.lineplot(data=test_data, x='Week', y='Balance', label='TEST')
-
-    plt.xticks(xlabels)
-    plt.xlabel('Week')
-    plt.ylabel('Balance')
-    plt.title('Balance Data')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
 
 def rms_error_calc(test_data, predictions):
     """
@@ -383,42 +286,53 @@ def weeks_between_dates(given_date):
     - given_date (str): La date donnée au format "YYYY-MM-DD".
 
     Returns:
-    - float: Le nombre de semaines (positif si dans le futur, négatif si dans le passé).
+    - int: Le nombre de semaines (positif si dans le futur, négatif si dans le passé),
+           avec un minimum de 1 si la différence est inférieure à 1 semaine.
     """
-    # Convertir la date donnée en un objet datetime
-    given_date = datetime.strptime(given_date, "%Y-%m-%d")
-    # Obtenir la date actuelle
     current_date = datetime.now()
-    print(current_date)
+    delta = given_date - current_date
     
-    # Calculer la différence en jours
-    days_difference = (given_date - current_date).days
-    # Convertir en semaines
-    weeks_difference = days_difference / 7
-    return weeks_difference
+    return delta.days // 7
 
 
+def Simulations(data, initial_balance: float, model_filename,df_main):
+    """
+    Calculate the forecasted balance based on input data.
 
-def simulation(date,amount,df_main):
-    weeks = int(weeks_between_dates(date))
-    if weeks == 0 :
-        weeks = 1
-    # Charger le modèle pré-entraîné
-    loaded_model = load_model(filename='trained_exp_smoothing_model.pkl')
-    # Prédire sur plusieurs semaines pour le nouveau client
-    predictions = predict_with_model(loaded_model, df_main, weeks_ahead=weeks)  
+    Args:
+        data (List[Dict]): List of dictionaries containing 'date' and 'amount'.
+        initial_balance (float): The initial balance to start the forecast.
+        model_filename (str): Path to the pre-trained model file.
 
-    flux_forecast = []
+    Returns:
+        List[float]: Forecasted balance including added amounts.
+    """
+    # Sort data by date
+    sorted_data = sorted(data, key=lambda x: x['Date'])
 
+    # Extract the maximum date
+    max_date = max([datetime.strptime(entry['Date'], "%Y-%m-%d") for entry in sorted_data])
+
+   
+    weeks = int(weeks_between_dates(max_date))
+
+    # Load the pre-trained model
+    loaded_model = load_model(filename=model_filename)
+
+    # Perform predictions
+    predictions = predict_with_model(loaded_model, df_main, weeks_ahead=weeks)
+
+    # Extract the predicted balances
     flux_forecast = predictions['Predicted_Balance']
 
+    # Perform cumulative addition with the initial balance
+    forecast_balance = cumulative_addition(flux_forecast, initial_balance)
 
-    forecast_balance = cumulative_addition(flux_forecast,1564.01)
-
-    # Ajouter le montant spécifié à la dernière balance prévisionnelle
-    if isinstance(forecast_balance, list):  # Vérifier que c'est une liste
-        forecast_balance[-1] += amount
+    # Add the specified amounts from the data to the forecast balance
+    if isinstance(forecast_balance, list):
+        for entry in sorted_data:
+            forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
     else:
-        raise TypeError("forecast_balance doit être une liste, vérifiez cumulative_addition.")
-    
+        raise TypeError("forecast_balance must be a list. Check cumulative_addition implementation.")
+
     return forecast_balance
