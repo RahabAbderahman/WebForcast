@@ -392,3 +392,31 @@ def update_spending_df(df, category, amount, spending_week):
     df = df.reindex(sorted(df.columns, key=lambda x: pd.to_datetime(x, format='%Y-%m-%d')), axis=1)
     
     return df
+
+
+def plot_expense_pie_avg_percentage(df):
+    """
+    This function plots the average percentage of each expense category in the 'DEPENSES' row as a pie chart.
+    
+    Parameters:
+    - df: The DataFrame containing the expense data.
+    """
+    # Calculate the average for each category across all time periods
+    category_averages = df.mean(axis=1)  # Average over the rows (axis=1)
+    
+    # Calculate the total of all categories
+    total_avg = category_averages.sum()
+    
+    # Calculate the percentage for each category
+    category_percentages = (category_averages / total_avg) * 100
+    
+    # Plot the results as a pie chart
+    plt.figure(figsize=(8, 8))
+    category_percentages.plot(kind='pie', labels=category_percentages.index, autopct='%1.1f%%', startangle=90, cmap="Set3")
+
+    # Add a title
+    plt.title('Average Percentage of Each Category of DEPENSES')
+
+    # Show the plot
+    plt.ylabel('')  # Remove the default y-axis label
+    plt.show()
