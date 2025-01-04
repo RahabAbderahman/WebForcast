@@ -334,6 +334,9 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     if isinstance(forecast_balance, list):
         for entry in sorted_data:
             forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
+        
+        forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
+
     else:
         raise TypeError("forecast_balance must be a list. Check cumulative_addition implementation.")
 
