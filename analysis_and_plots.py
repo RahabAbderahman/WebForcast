@@ -33,6 +33,9 @@ def preprocessing(df):
     df_1 = df_1.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
     df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
 
+    df_1.fillna("", inplace=True)
+    df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
+
     return df_1
 
 
@@ -293,8 +296,8 @@ def weeks_between_dates(given_date):
     - int: Le nombre de semaines (positif si dans le futur, négatif si dans le passé),
            avec un minimum de 1 si la différence est inférieure à 1 semaine.
     """
-    current_date = datetime.today().strftime("%Y-%m-%d")
-    delta = given_date - datetime.strptime(current_date, "%Y-%m-%d").date()
+    current_date = datetime.now()
+    delta = given_date - current_date
     
     return delta.days // 7
 
@@ -315,7 +318,7 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     sorted_data = sorted(data, key=lambda x: x['Date'])
 
     # Extract the maximum date
-    max_date = max([ entry['Date'] for entry in sorted_data])
+    max_date = max([datetime.strptime(entry['Date'], "%Y-%m-%d") for entry in sorted_data])
 
    
     weeks = int(weeks_between_dates(max_date))
@@ -336,6 +339,9 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     if isinstance(forecast_balance, list):
         for entry in sorted_data:
             forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
+        
+        forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
+
     else:
         raise TypeError("forecast_balance must be a list. Check cumulative_addition implementation.")
 
@@ -394,3 +400,31 @@ def update_spending_df(df, category, amount, spending_week):
     df = df.reindex(sorted(df.columns, key=lambda x: pd.to_datetime(x, format='%Y-%m-%d')), axis=1)
     
     return df
+
+
+def plot_expense_pie_avg_percentage(df):
+    """
+    This function plots the average percentage of each expense category in the 'DEPENSES' row as a pie chart.
+    
+    Parameters:
+    - df: The DataFrame containing the expense data.
+    """
+    # Calculate the average for each category across all time periods
+    category_averages = df.mean(axis=1)  # Average over the rows (axis=1)
+    
+    # Calculate the total of all categories
+    total_avg = category_averages.sum()
+    
+    # Calculate the percentage for each category
+    category_percentages = (category_averages / total_avg) * 100
+    
+    # Plot the results as a pie chart
+    plt.figure(figsize=(8, 8))
+    category_percentages.plot(kind='pie', labels=category_percentages.index, autopct='%1.1f%%', startangle=90, cmap="Set3")
+
+    # Add a title
+    plt.title('Average Percentage of Each Category of DEPENSES')
+
+    # Show the plot
+    plt.ylabel('')  # Remove the default y-axis label
+    plt.show()
