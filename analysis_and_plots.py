@@ -29,10 +29,6 @@ def preprocessing(df):
     
     df_1 = df_1.dropna(how='all')
 
-    #df_1.fillna("", inplace=True)
-    df_1 = df_1.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
-    df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
-
     df_1.fillna("", inplace=True)
     df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
 
@@ -159,7 +155,7 @@ def predict_with_model(model, new_data, weeks_ahead=4):
         DataFrame: Un DataFrame contenant les prévisions pour les prochaines semaines.
     """
     # Assurez-vous que 'Week' est ordonné
-    new_data = new_data.sort_values('Week')
+    new_data = new_data.sort_values(by='Week')
 
     # Prédire pour les semaines futures
     last_date = pd.to_datetime(new_data['Week'].iloc[-1])
@@ -239,8 +235,7 @@ def sum_columns(dataframe):
 
     working_df = dataframe
     # Replace empty strings with 0
-    #working_df.replace("", 0, inplace=True)
-    working_df = working_df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
+    working_df.replace("", 0, inplace=True)
     # Calculate the sum for each column
     total_sum = working_df.sum(axis=0)
 
@@ -338,7 +333,7 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     # Add the specified amounts from the data to the forecast balance
     if isinstance(forecast_balance, list):
         for entry in sorted_data:
-            forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
+            forecast_balance = [balance - entry['Amount'] for balance in forecast_balance]
         
         forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
 
