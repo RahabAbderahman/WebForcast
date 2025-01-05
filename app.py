@@ -25,8 +25,8 @@ if "dataframe_depenses" not in st.session_state:
         st.session_state.dataframe_depenses = None
 if "dataframe_revenus" not in st.session_state:
         st.session_state.dataframe_revenus = None
-if "df_forecast" not in st.session_state:
-        st.session_state.df_forecast = None
+if "result" not in st.session_state:
+        st.session_state.result = None
 if "solde_before" not in st.session_state:
         st.session_state.solde_before = None
 if "df_simulation" not in st.session_state:
@@ -72,14 +72,14 @@ with col2:
             
             # TABLE OF REVENUES
             revenus = tables[0]
-            index_revenus = ["Salaire (€)"]
+            index_revenus = ["Salaire"]
 
             # TABLE OF Expenses
-            depenses = tables[1]
+            depenses = tables[2]
             index_depenses = [
-            "Loyer (€)", "Restaurant  (€)", "Telephone  (€)", "Shopping  (€)", "Coffee (€)",
-            "Transports (€)", "Electricte (€)", "Netflix (€)", "Divers Amazon (€)", "Salle de sport (€)",
-            "Divers (€)", "Autres (€)"
+            "Loyer", "Restaurant", "Telephone", "Shopping", "Coffee",
+            "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport",
+            "Divers", "Autres"
             ]
             # Preprocessing TABLE OF REVENUES
             df_revenus = analysis_and_plots.preprocessing(revenus)
@@ -109,9 +109,11 @@ with col2:
 
             forecast_balance = analysis_and_plots.cumulative_addition(flux_forecast,st.session_state.actual_balance)
             st.session_state.solde_before = analysis_and_plots.cumulative_addition(st.session_state.df_main['Balance'],st.session_state.actual_balance)
-            result = [st.session_state.solde_before + [''] * (len(forecast_balance) - 1), [''] * len(st.session_state.solde_before) + forecast_balance]
+            st.session_state.solde_before = ["{:.2f}".format(num) for num in st.session_state.solde_before]
+            forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
+            st.session_state.result = [st.session_state.solde_before + [''] * (len(forecast_balance) - 1), [''] * len(st.session_state.solde_before) + forecast_balance]
 
-            st.session_state.df_forecast= pd.DataFrame(forecast_balance, columns=['Forecast_Balance'])
+            df_forecast= pd.DataFrame(forecast_balance, columns=['Forecast_Balance'])
             
     else:
         st.button("Validate", disabled=True)
@@ -170,15 +172,16 @@ with col2:
     # Add a button to simulate the forecast
     if st.button("Simulate") and st.session_state.purchases_table and st.session_state.actual_balance != 0.0:
         st.session_state.df_simulation= analysis_and_plots.Simulations(st.session_state.purchases_table,st.session_state.actual_balance ,"trained_exp_smoothing_model.pkl",st.session_state.df_main)
-        result = [st.session_state.solde_before + [''] * (len(st.session_state.df_simulation) - 1), [''] * len(st.session_state.solde_before) + st.session_state.df_simulation]
- 
+        st.session_state.result = [st.session_state.solde_before + [''] * (len(st.session_state.df_simulation) - 1), [''] * len(st.session_state.solde_before) + st.session_state.df_simulation]
+        for purchase in st.session_state.purchases_table:
+            st.session_state.dataframe_depenses = analysis_and_plots.update_spending_df(st.session_state.dataframe_depenses,purchase["Category"],purchase["Amount"],purchase["Date"])
+        #st.session_state.purchases_table = []
+        st.rerun()
 
 with col1:
     
-    if st.session_state.df_simulation is not None and st.session_state.purchases_table is not None:
-        st.dataframe(st.session_state.df_simulation)
-    elif st.session_state.df_forecast is not None : 
-        st.dataframe(st.session_state.df_forecast.transpose())
+    if st.session_state.result is not None:
+        st.dataframe(st.session_state.result)
     
 with col2: 
 

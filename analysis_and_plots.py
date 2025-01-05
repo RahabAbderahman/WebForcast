@@ -313,7 +313,7 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     sorted_data = sorted(data, key=lambda x: x['Date'])
 
     # Extract the maximum date
-    max_date = max([datetime.strptime(entry['Date'], "%Y-%m-%d") for entry in sorted_data])
+    max_date = max([datetime.strptime(str(entry['Date']), "%Y-%m-%d") for entry in sorted_data])
 
    
     weeks = int(weeks_between_dates(max_date))
