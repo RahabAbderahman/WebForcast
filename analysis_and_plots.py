@@ -333,7 +333,7 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
     # Add the specified amounts from the data to the forecast balance
     if isinstance(forecast_balance, list):
         for entry in sorted_data:
-            forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
+            forecast_balance = [balance - entry['Amount'] for balance in forecast_balance]
         
         forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
 
