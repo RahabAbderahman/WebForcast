@@ -7,3 +7,4 @@ pandas
 numpy
 xlsxwriter
 openpyxl
+plotly

@@ -6,6 +6,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 from sklearn.metrics import mean_squared_error
 import pickle
+from datetime import datetime
 
 def preprocessing(df):
     """
@@ -28,7 +29,10 @@ def preprocessing(df):
     
     df_1 = df_1.dropna(how='all')
 
-    df_1.fillna("", inplace=True)
+    #df_1.fillna("", inplace=True)
+    df_1 = df_1.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
+    df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
+
     return df_1
 
 
@@ -58,72 +62,9 @@ def train_test_split(df, split_index=455):
 
     return train_data, test_data
 
-def plot_train_test_data(train_data, test_data, x_label_index=50, figsize=(12, 5), dpi=150):
-    """
-    Create a line plot to visualize training and test data.
 
-    Parameters:
-    - train_data (DataFrame): DataFrame containing training data with columns 'Week' and 'Balance'.
-    - test_data (DataFrame): DataFrame containing test data with columns 'Week' and 'Balance'.
-    - x_label_index (int): Frequency for displaying x-axis labels.
-    - figsize (tuple): Size of the figure.
-    - dpi (int): Dots per inch for the figure.
 
-    Returns:
-    - None: Displays the plot.
 
-    Example:
-    plot_train_test_data(train_df, test_df)
-    """
-    combined_data = pd.concat([train_data, test_data])
-    xlabels = combined_data['Week'][::x_label_index]
-
-    sns.set(style="whitegrid")
-    plt.figure(figsize=figsize, dpi=dpi)
-    sns.lineplot(data=train_data, x='Week', y='Balance', label='TRAIN')
-    sns.lineplot(data=test_data, x='Week', y='Balance', label='TEST')
-
-    plt.xticks(xlabels)
-    plt.xlabel('Week')
-    plt.ylabel('Balance')
-    plt.title('Balance Data')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-def seasonal_decompose_plot(train_data, period=12):
-    """
-    Perform seasonal decomposition on training data and plot the components.
-
-    Parameters:
-        train_data (DataFrame): Training data with 'Week' and 'Balance'.
-        period (int): Seasonal period. Default is 7.
-
-    Returns:
-        None
-
-    Example:
-    seasonal_decompose_plot(train_data, period=12)
-    """
-    result = seasonal_decompose(train_data['Balance'], period=period, model='additive')
-
-    plt.figure(figsize=(8, 6))
-    plt.subplot(411)
-    plt.plot(result.observed, label='Observed')
-    plt.legend()
-    plt.subplot(412)
-    plt.plot(result.trend, label='Trend')
-    plt.legend()
-    plt.subplot(413)
-    plt.plot(result.seasonal, label='Seasonal')
-    plt.legend()
-    plt.subplot(414)
-    plt.plot(result.resid, label='Residual')
-    plt.legend()
-
-    plt.suptitle('Seasonal Decomposition of Balance Data')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.show()
 
 def exp_smoothing_model(train_data, test_data, model='triple', span=12):
     """
@@ -143,12 +84,7 @@ def exp_smoothing_model(train_data, test_data, model='triple', span=12):
     """
     time_steps = len(test_data)
 
-    if model == 'single':
-        alpha = 2 / (span + 1)
-        model_fit = SimpleExpSmoothing(train_data['Balance']).fit(smoothing_level=alpha)
-    elif model == 'double':
-        model_fit = ExponentialSmoothing(train_data['Balance'], trend='add').fit()
-    elif model == 'triple':
+    if model == 'triple':
         model_fit = ExponentialSmoothing(train_data['Balance'], trend='add', seasonal='add', seasonal_periods=span).fit()
 
     #Save the trained model to a file
@@ -159,40 +95,6 @@ def exp_smoothing_model(train_data, test_data, model='triple', span=12):
 
     return predictions
 
-def exponential_smoothing_plot(train_data, test_data, predictions, split_index=100, figsize=(12, 6), dpi=150):
-    """
-    Create a line plot to visualize training, test, and predicted data.
-
-    Parameters:
-    - train_data (DataFrame): Training data with 'Week' and 'Balance'.
-    - test_data (DataFrame): Test data with 'Week' and 'Balance'.
-    - predictions (DataFrame): Predictions with 'Week' and 'Balance'.
-    - split_index (int): Frequency for x-axis labels.
-    - figsize (tuple): Figure size.
-    - dpi (int): Figure resolution.
-
-    Returns:
-    - None: Displays the plot.
-
-    Example:
-    exponential_smoothing_plot(train_df, test_df, predictions)
-    """
-    combined_data = pd.concat([train_data, test_data])
-    xlabels = combined_data['Week'][::split_index]
-
-    sns.set(style="whitegrid")
-    plt.figure(figsize=figsize, dpi=dpi)
-    sns.lineplot(data=train_data, x='Week', y='Balance', label='TRAIN')
-    sns.lineplot(data=predictions, x='Week', y='Balance', label='PREDICTION')
-    sns.lineplot(data=test_data, x='Week', y='Balance', label='TEST')
-
-    plt.xticks(xlabels)
-    plt.xlabel('Week')
-    plt.ylabel('Balance')
-    plt.title('Balance Data')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
 
 def rms_error_calc(test_data, predictions):
     """
@@ -254,7 +156,7 @@ def predict_with_model(model, new_data, weeks_ahead=4):
         DataFrame: Un DataFrame contenant les prévisions pour les prochaines semaines.
     """
     # Assurez-vous que 'Week' est ordonné
-    new_data = new_data.sort_values(by='Week')
+    new_data = new_data.sort_values('Week')
 
     # Prédire pour les semaines futures
     last_date = pd.to_datetime(new_data['Week'].iloc[-1])
@@ -334,7 +236,8 @@ def sum_columns(dataframe):
 
     working_df = dataframe
     # Replace empty strings with 0
-    working_df.replace("", 0, inplace=True)
+    #working_df.replace("", 0, inplace=True)
+    working_df = working_df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(float)
     # Calculate the sum for each column
     total_sum = working_df.sum(axis=0)
 
@@ -377,3 +280,117 @@ def subtract_dataframes(df1, df2):
 
 def weeklySoldeForecast(actualSold,weeklyTotalCashFlow):
   return actualSold+weeklyTotalCashFlow
+
+
+def weeks_between_dates(given_date):
+    """
+    Calcule le nombre de semaines entre la date actuelle et une date donnée.
+
+    Parameters:
+    - given_date (str): La date donnée au format "YYYY-MM-DD".
+
+    Returns:
+    - int: Le nombre de semaines (positif si dans le futur, négatif si dans le passé),
+           avec un minimum de 1 si la différence est inférieure à 1 semaine.
+    """
+    current_date = datetime.today().strftime("%Y-%m-%d")
+    delta = given_date - datetime.strptime(current_date, "%Y-%m-%d").date()
+    
+    return delta.days // 7
+
+
+def Simulations(data, initial_balance: float, model_filename,df_main):
+    """
+    Calculate the forecasted balance based on input data.
+
+    Args:
+        data (List[Dict]): List of dictionaries containing 'date' and 'amount'.
+        initial_balance (float): The initial balance to start the forecast.
+        model_filename (str): Path to the pre-trained model file.
+
+    Returns:
+        List[float]: Forecasted balance including added amounts.
+    """
+    # Sort data by date
+    sorted_data = sorted(data, key=lambda x: x['Date'])
+
+    # Extract the maximum date
+    max_date = max([ entry['Date'] for entry in sorted_data])
+
+   
+    weeks = int(weeks_between_dates(max_date))
+
+    # Load the pre-trained model
+    loaded_model = load_model(filename=model_filename)
+
+    # Perform predictions
+    predictions = predict_with_model(loaded_model, df_main, weeks_ahead=weeks)
+
+    # Extract the predicted balances
+    flux_forecast = predictions['Predicted_Balance']
+
+    # Perform cumulative addition with the initial balance
+    forecast_balance = cumulative_addition(flux_forecast, initial_balance)
+
+    # Add the specified amounts from the data to the forecast balance
+    if isinstance(forecast_balance, list):
+        for entry in sorted_data:
+            forecast_balance = [balance + entry['Amount'] for balance in forecast_balance]
+    else:
+        raise TypeError("forecast_balance must be a list. Check cumulative_addition implementation.")
+
+    return forecast_balance
+
+
+
+def update_spending_df(df, category, amount, spending_week):
+    """
+    Updates the DataFrame with a new spending entry.
+    
+    Parameters:
+    df (pd.DataFrame): The current DataFrame of spending.
+    category (str): The spending category.
+    amount (float): The amount spent.
+    spending_week (str): The week of the spending in 'YYYY-mm-dd' format.
+    
+    Returns:
+    pd.DataFrame: The updated DataFrame.
+    """
+    # Ensure the spending_week is in 'YYYY-mm-dd' format and treat it as a Period object
+    spending_week = pd.to_datetime(spending_week, format='%Y-%m-%d').to_period('W-SUN')  # Week ending on Sunday
+
+    # Convert existing columns to Periods for consistency
+    if not df.empty:
+        existing_weeks = pd.to_datetime(df.columns, format='%Y-%m-%d', errors='coerce').to_period('W-SUN')
+    else:
+        existing_weeks = pd.PeriodIndex([], freq='W-SUN')
+    
+    # Handle missing weeks between the latest week and the new spending week
+    if existing_weeks.size > 0:
+        last_week = existing_weeks[-1]
+    else:
+        last_week = spending_week - 1  # Start from one week before the first spending week
+    
+    # Add missing weeks as columns
+    all_weeks = pd.period_range(last_week + 1, spending_week, freq='W-SUN')
+    for week in all_weeks:
+        week_str = week.end_time.strftime('%Y-%m-%d')  # Convert the end of the week to 'YYYY-mm-dd'
+        if week_str not in df.columns:
+            df[week_str] = 0  # Add missing weeks with zero values
+    
+    # Ensure the spending week column exists
+    spending_week_str = spending_week.end_time.strftime('%Y-%m-%d')
+    if spending_week_str not in df.columns:
+        df[spending_week_str] = 0
+    
+    # Ensure the category exists as a row
+    if category not in df.index:
+        df.loc[category] = [0] * len(df.columns)
+    
+    # Add the spending amount to the appropriate cell
+    df.loc[category, spending_week_str] += amount
+    
+    # Sort the columns chronologically
+    df = df.reindex(sorted(df.columns, key=lambda x: pd.to_datetime(x, format='%Y-%m-%d')), axis=1)
+    
+    return df
