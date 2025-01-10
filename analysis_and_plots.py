@@ -6,7 +6,7 @@ from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
 from sklearn.metrics import mean_squared_error
 import pickle
-from datetime import datetime
+from datetime import datetime, timedelta
 
 def preprocessing(df):
     """
@@ -26,15 +26,12 @@ def preprocessing(df):
     df_1 = df.copy()
     df_1 = df_1.loc[:, df_1.columns.get_level_values(0) != 'Date']
 
-    
     df_1 = df_1.dropna(how='all')
 
     df_1.fillna("", inplace=True)
     df_1.columns = [col.date() if isinstance(col, datetime) else col for col in df_1.columns]
 
     return df_1
-
-
 
 
 
@@ -229,6 +226,67 @@ def create_df(dframe, index_name, index):
     
     return df
 
+def create_df2(dframe, index_name, index , datesList, purchasesList, purchasesList2):
+    
+    
+    # Create the DataFrame
+    df = pd.DataFrame(dframe)
+    
+    # Set the index and rename it
+    df.index = index
+
+    df.index.name = index_name
+    dates = [d.date() if isinstance(d, pd.Timestamp) else d for d in datesList]
+    purchasesDate = [entry["Date"] for entry in purchasesList]
+    purchasesDate=[d.date() if isinstance(d, pd.Timestamp) else d for d in purchasesDate]
+    max_date = max(purchasesDate)
+    i= weeks_between_dates(pd.to_datetime(max_date))
+    print("i :", i)
+    while i >= 0 and len(purchasesDate)>0 :
+        addedDate= max_date
+        max_date = max(purchasesDate)
+        print('delta2 ',  (addedDate - max_date).days // 7  )
+        if (addedDate - max_date).days // 7 > 0 or addedDate == max_date:
+            if max_date not in dates: dates.append(max_date)
+            purchasesDate= [entry for entry in purchasesDate if  entry != max_date]
+        i= i-1
+        
+    print("dates2 ",len(dates))
+    print("columns ",len(df.columns))
+    if len(df.columns)< len(dates): dates.pop(len(dates)-1)
+    dates= sorted(dates)
+    df.columns= dates
+    return df
+
+def create_df3(dframe, index_name, index , datesList):
+    
+    
+    # Create the DataFrame
+    df = pd.DataFrame(dframe)
+    
+    # Set the index and rename it
+    print("df.index : ", df.index.name )
+    df.index = index
+    df.index.name = index_name
+    dates = [d.date() if isinstance(d, pd.Timestamp) else d for d in datesList]
+    print("dates 1 ", len(dates ))
+    max_date = max(dates)
+    date= max_date + timedelta(days=7)
+    dates.append(date) 
+    print("dates 2 ", len(dates ))
+    date= max_date + timedelta(days=14)
+    dates.append(date)
+    print("dates 3 ", len(dates )) 
+    date= max_date + timedelta(days=21)
+    dates.append(date)
+    print("dates 4 ", len(dates )) 
+    date= max_date + timedelta(days=28)  
+    dates.append(date) 
+    print("dates 5 ", len(dates ))  
+    #dates = sorted(set(dates))
+    print("forcast.columns ", df.columns)
+    df.columns= dates
+    return df
 
 
 def sum_columns(dataframe):
@@ -293,7 +351,8 @@ def weeks_between_dates(given_date):
     """
     current_date = datetime.now()
     delta = given_date - current_date
-    
+    print('delta ', delta.days // 7 )
+    if delta.days // 7 <= 0 : return 1
     return delta.days // 7
 
 
@@ -314,14 +373,14 @@ def Simulations(data, initial_balance: float, model_filename,df_main):
 
     # Extract the maximum date
     max_date = max([datetime.strptime(str(entry['Date']), "%Y-%m-%d") for entry in sorted_data])
-
-   
-    weeks = int(weeks_between_dates(max_date))
+    print("max date in simulation", max_date)
+    weeks = abs(int(weeks_between_dates(max_date)))
 
     # Load the pre-trained model
     loaded_model = load_model(filename=model_filename)
 
     # Perform predictions
+    print("weeks",weeks )
     predictions = predict_with_model(loaded_model, df_main, weeks_ahead=weeks)
 
     # Extract the predicted balances

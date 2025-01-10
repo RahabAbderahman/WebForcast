@@ -33,7 +33,11 @@ if "df_simulation" not in st.session_state:
         st.session_state.df_simulation = None
 if 'purchases_table' not in st.session_state:
         st.session_state.purchases_table = []
+if 'purchases_table2' not in st.session_state:
+        st.session_state.purchases_table2 = []
 
+if 'tables' not in st.session_state:
+        st.session_state.tables = None
 # Create two columns
 col1, col2 = st.columns(2)
 
@@ -67,15 +71,15 @@ with col2:
         if st.button("Validate", key="ValidateBtn", disabled=False):
             st.session_state.validate = True
             sheet_name = "CFF"  # Replace with your sheet name
-            tables = analysis_and_plots.get_tables_from_sheet(st.session_state.uploaded_file, sheet_name)
+            st.session_state.tables = analysis_and_plots.get_tables_from_sheet(st.session_state.uploaded_file, sheet_name)
             # Example of processing and visualizing data
             
             # TABLE OF REVENUES
-            revenus = tables[0]
+            revenus = st.session_state.tables[0]
             index_revenus = ["Salaire"]
-
+            print('revenus',revenus)
             # TABLE OF Expenses
-            depenses = tables[2]
+            depenses = st.session_state.tables[2]
             index_depenses = [
             "Loyer", "Restaurant", "Telephone", "Shopping", "Coffee",
             "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport",
@@ -112,7 +116,9 @@ with col2:
             st.session_state.solde_before = ["{:.2f}".format(num) for num in st.session_state.solde_before]
             forecast_balance = ["{:.2f}".format(num) for num in forecast_balance]
             st.session_state.result = [st.session_state.solde_before + [''] * (len(forecast_balance) - 1), [''] * len(st.session_state.solde_before) + forecast_balance]
-
+            index_Forcast = ["Actuel Balance","Forcast"]
+            dates = pd.to_datetime(st.session_state.dataframe_revenus.columns.tolist())
+            st.session_state.result = analysis_and_plots.create_df3(st.session_state.result,'FORECAST', index_Forcast, dates)
             df_forecast= pd.DataFrame(forecast_balance, columns=['Forecast_Balance'])
             
     else:
@@ -136,18 +142,9 @@ with col2:
         row["Description"] = cols[0].text_input("Description", value=row["Description"], key=f"description_{i}")
         # Category selectbox with "Autres" option
         categories = ["Loyer", "Restaurant", "Telephone", "Shopping", "Coffee", "Transports", "Electricte", "Netflix", "Divers Amazon", "Salle de sport", "Divers", "Autres"]
-        selected_category = row.get("Category", "Loyer")
-        if selected_category not in categories:
-            selected_category = "Loyer"
-        selected_category = cols[1].selectbox("Category", categories, index=categories.index(selected_category), key=f"category_{i}")
-        
-        if selected_category == "Autres":
-            row["Category"] = cols[1].text_input("Specify Category", value=row.get("Category", ""), key=f"other_category_{i}")
-        else:
-            row["Category"] = selected_category
-        
+        row["Category"] = cols[1].selectbox("Category", categories, key=f"category_{i}")
         row["Amount"] = cols[2].number_input("Amount", format="%.2f", key=f"amount_{i}")
-        row["Date"] = cols[3].date_input("Date", value=row["Date"], key=f"date_{i}")
+        row["Date"] = cols[3].date_input("Date", key=f"date_{i}")
         row["Delete"]= cols[4].button("Delete",  key=f"delete_{i}", on_click=delete_row, args=(i,))
             
     
@@ -170,14 +167,25 @@ with col1:
 
 with col2:
     # Add a button to simulate the forecast
-    if st.button("Simulate") and st.session_state.purchases_table and st.session_state.actual_balance != 0.0:
-        st.session_state.df_simulation= analysis_and_plots.Simulations(st.session_state.purchases_table,st.session_state.actual_balance ,"trained_exp_smoothing_model.pkl",st.session_state.df_main)
-        st.session_state.result = [st.session_state.solde_before + [''] * (len(st.session_state.df_simulation) - 1), [''] * len(st.session_state.solde_before) + st.session_state.df_simulation]
-        for purchase in st.session_state.purchases_table:
-            st.session_state.dataframe_depenses = analysis_and_plots.update_spending_df(st.session_state.dataframe_depenses,purchase["Category"],purchase["Amount"],purchase["Date"])
-        #st.session_state.purchases_table = []
-        st.rerun()
-
+    if len( st.session_state.purchases_table)!=0 and st.session_state.actual_balance != 0.0:
+        if st.button("Simulate") :
+            st.session_state.df_simulation= analysis_and_plots.Simulations(st.session_state.purchases_table,st.session_state.actual_balance ,"trained_exp_smoothing_model.pkl",st.session_state.df_main)
+            st.session_state.result = [st.session_state.solde_before + [''] * (len(st.session_state.df_simulation) - 1), [''] * len(st.session_state.solde_before) + st.session_state.df_simulation]
+            
+            
+            for purchase in st.session_state.purchases_table:
+                st.session_state.dataframe_depenses = analysis_and_plots.update_spending_df(st.session_state.dataframe_depenses,purchase["Category"],purchase["Amount"],purchase["Date"])
+            
+        
+            index_simulation = ["Actuel  Balance", "SIMULATION"]
+            dates = pd.to_datetime(st.session_state.dataframe_revenus.columns.tolist(), format= "%Y-%m-%d")
+            st.session_state.result = analysis_and_plots.create_df2(st.session_state.result, 'Simulation', index_simulation, dates, st.session_state.purchases_table, st.session_state.purchases_table2)
+            st.session_state.purchases_table2 =st.session_state.purchases_table
+            #st.session_state.purchases_table= []
+            st.rerun()
+    else : st.button("Simulate", disabled=True)    
+             
+        
 with col1:
     
     if st.session_state.result is not None:
